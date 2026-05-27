@@ -4105,15 +4105,36 @@ function renderStorici(){
       .sh-td:first-child { text-align:left; color:var(--text-secondary,#4B5563); position:sticky; left:0; z-index:1; max-width:200px; overflow:hidden; text-overflow:ellipsis; box-shadow:1px 0 0 rgba(27,58,92,.06); }
       .sh-na { color:var(--text-light,#9CA3AF); font-style:italic; }
       .sh-voce-row { cursor:default; }
-      .sh-voce-detail { display:none; }
-      .sh-voce-detail td {
-        background:#F3F8F8 !important;
-        color:var(--text-secondary,#4B5563);
-        text-align:left;
-        white-space:normal;
-        word-break:break-word;
-        border-bottom:1px solid var(--border-light,#E5E9EF);
-        padding:8px 10px;
+      .sh-voce-tip {
+        position:fixed; inset:0; z-index:600; display:none;
+        align-items:flex-end; justify-content:center; padding:16px;
+        background:rgba(15,39,64,0.35);
+      }
+      .sh-voce-tip.open { display:flex; }
+      .sh-voce-tip-box {
+        width:min(92vw,420px); max-height:min(42vh,280px); overflow-y:auto;
+        background:#fff; border-radius:12px 12px 0 0;
+        box-shadow:0 -4px 24px rgba(0,0,0,0.18);
+        padding:14px 16px 18px; position:relative;
+        animation:shVoceTipIn .18s ease-out;
+      }
+      @keyframes shVoceTipIn {
+        from { transform:translateY(12px); opacity:0; }
+        to { transform:translateY(0); opacity:1; }
+      }
+      .sh-voce-tip-close {
+        position:absolute; top:10px; right:10px;
+        width:28px; height:28px; border:none; border-radius:6px;
+        background:#F3F4F6; color:var(--text-muted); font-size:0.85rem;
+        cursor:pointer; line-height:1;
+      }
+      .sh-voce-tip-label {
+        font-size:0.62rem; font-weight:700; text-transform:uppercase;
+        letter-spacing:0.06em; color:var(--text-muted); margin-bottom:6px;
+      }
+      .sh-voce-tip-text {
+        font-size:0.82rem; line-height:1.45; color:var(--ca-navy,#1B3A5C);
+        padding-right:24px; word-break:break-word;
       }
 
       /* ── FILTRI ── */
@@ -4178,21 +4199,21 @@ function renderStorici(){
         .sh-filter-btn { font-size:0.65rem; padding:4px 8px; }
         .sh-subsection-title { font-size:0.63rem; }
         .sh-notes-list { font-size:0.68rem; }
-        .sh-voce-row { cursor:pointer; }
-        .sh-voce-row .sh-td:first-child { padding-right:18px; position:sticky; }
+        .sh-voce-row { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+        .sh-voce-row .sh-td:first-child { padding-right:16px; position:sticky; }
         .sh-voce-row .sh-td:first-child::after {
-          content:'▶';
+          content:'⋯';
           position:absolute;
-          right:6px;
+          right:4px;
           top:50%;
           transform:translateY(-50%);
-          font-size:0.56rem;
+          font-size:0.72rem;
           color:var(--ca-teal,#009C9C);
-          opacity:.85;
+          opacity:.75;
+          letter-spacing:0;
         }
-        .sh-voce-row.expanded .sh-td:first-child::after { content:'▼'; }
-        .sh-voce-row.expanded + .sh-voce-detail { display:table-row; }
-        .sh-voce-detail td { font-size:0.66rem; line-height:1.35; }
+        .sh-voce-tip { padding:12px; align-items:center; }
+        .sh-voce-tip-box { border-radius:12px; max-height:min(50vh,320px); }
       }
 
       /* ── MOBILE STRETTO (max 400px) ── */
@@ -4252,10 +4273,9 @@ function renderStorici(){
       const safeVoce = escHtml(r.voce||'');
       const vals=[...r.values].reverse();
       const ratio=isRatio(vals);
-      h+=`<tr class="sh-voce-row" data-voce="${safeVoce}"><td class="sh-td">${safeVoce}</td>`;
+      h+=`<tr class="sh-voce-row"><td class="sh-td">${safeVoce}</td>`;
       vals.forEach(v=>{ h+=fmtCell(v,ratio); });
       h+=`</tr>`;
-      h+=`<tr class="sh-voce-detail"><td colspan="${dates.length+1}">${safeVoce}</td></tr>`;
     });
     h+=`</tbody></table></div>`;
     return h;
@@ -4448,22 +4468,60 @@ function renderStorici(){
   html += `</div>`; // .sh-wrap
   panel.innerHTML = html;
 
+  let voceTip = document.getElementById('sh-voce-tip');
+  if(!voceTip){
+    voceTip = document.createElement('div');
+    voceTip.id = 'sh-voce-tip';
+    voceTip.className = 'sh-voce-tip';
+    voceTip.setAttribute('aria-hidden', 'true');
+    voceTip.innerHTML = `
+      <div class="sh-voce-tip-box" role="dialog" aria-modal="true" aria-labelledby="sh-voce-tip-label">
+        <button type="button" class="sh-voce-tip-close" aria-label="Chiudi">✕</button>
+        <div class="sh-voce-tip-label" id="sh-voce-tip-label">Descrizione voce</div>
+        <div class="sh-voce-tip-text"></div>
+      </div>`;
+    document.getElementById('dashboard').appendChild(voceTip);
+    voceTip.addEventListener('click', (ev)=>{
+      if(ev.target===voceTip) shVoceTipClose();
+    });
+    voceTip.querySelector('.sh-voce-tip-close').addEventListener('click', shVoceTipClose);
+  }
+  function shVoceTipClose(){
+    voceTip.classList.remove('open');
+    voceTip.setAttribute('aria-hidden', 'true');
+  }
+  function shVoceTipOpen(text){
+    voceTip.querySelector('.sh-voce-tip-text').textContent = text;
+    voceTip.classList.add('open');
+    voceTip.setAttribute('aria-hidden', 'false');
+  }
   if(panel._storiciTapHandler){
     panel.removeEventListener('click', panel._storiciTapHandler);
     panel._storiciTapHandler = null;
+  }
+  if(panel._storiciKeyHandler){
+    document.removeEventListener('keydown', panel._storiciKeyHandler);
+    panel._storiciKeyHandler = null;
   }
   panel._storiciTapHandler = (ev)=>{
     if(!window.matchMedia('(max-width: 600px)').matches) return;
     const row = ev.target && ev.target.closest ? ev.target.closest('.sh-voce-row') : null;
     if(!row || !panel.contains(row)) return;
-    const tbl = row.closest('table.sh-tbl');
-    if(!tbl) return;
-    tbl.querySelectorAll('.sh-voce-row.expanded').forEach(rw=>{
-      if(rw!==row) rw.classList.remove('expanded');
-    });
-    row.classList.toggle('expanded');
+    const labelCell = row.querySelector('.sh-td:first-child');
+    if(!labelCell) return;
+    const text = labelCell.textContent.trim();
+    if(!text) return;
+    if(voceTip.classList.contains('open') && voceTip.querySelector('.sh-voce-tip-text').textContent === text){
+      shVoceTipClose();
+      return;
+    }
+    shVoceTipOpen(text);
+  };
+  panel._storiciKeyHandler = (ev)=>{
+    if(ev.key==='Escape') shVoceTipClose();
   };
   panel.addEventListener('click', panel._storiciTapHandler);
+  document.addEventListener('keydown', panel._storiciKeyHandler);
 
   // Execute all pending chart renders now that canvas elements exist in DOM
   pendingCharts.forEach(fn=>fn());
