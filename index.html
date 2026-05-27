@@ -52,6 +52,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 
 :root {
+  --topbar-h: 58px;
   --ca-green: #009C9C;
   --ca-green-light: #00B3B3;
   --ca-green-pale: #E6F5F5;
@@ -100,11 +101,11 @@ html { overflow-x:hidden; }
 #file-input { display:none; }
 
 /* -- TOP BAR -- */
-#dashboard { display:none; }
+#dashboard { display:none; padding-top:var(--topbar-h); }
 .top-bar {
   background: linear-gradient(135deg, #0f2740 0%, var(--ca-navy) 50%, #004D4D 100%);
   padding:0 32px; display:flex; align-items:center; justify-content:space-between;
-  position:sticky; top:0; z-index:100; height:58px;
+  position:fixed; top:0; left:0; right:0; z-index:100; height:var(--topbar-h);
   box-shadow:0 2px 16px rgba(0,0,0,0.18); }
 .top-bar-brand { display:flex; align-items:center; gap:12px; }
 .top-bar-logo { width:32px; height:32px; background:rgba(255,255,255,0.15); border-radius:8px;
@@ -121,7 +122,7 @@ html { overflow-x:hidden; }
 /* -- TABS (sidebar) -- */
 .tabs-bar { background:white; border-right:1px solid var(--border); padding:16px 0;
   display:flex; flex-direction:column; gap:2px; overflow-y:auto; box-shadow:var(--shadow-xs);
-  width:200px; min-height:calc(100vh - 58px); position:fixed; left:0; top:58px; z-index:90; }
+  width:200px; min-height:calc(100vh - var(--topbar-h)); position:fixed; left:0; top:var(--topbar-h); z-index:90; }
 .tab-btn { padding:10px 20px; height:auto; background:none; border:none; border-left:3px solid transparent;
   font-family:inherit; font-weight:600; font-size:0.82rem; color:var(--text-muted);
   cursor:pointer; white-space:nowrap; transition:var(--transition); display:flex; align-items:center; gap:7px;
@@ -242,6 +243,7 @@ table.data-table tr.level-0 { background:linear-gradient(90deg,#E6F5F5,#F0FAFA);
 table.data-table tr.level-0 td:first-child { border-left:3px solid var(--ca-green); padding-left:12px; }
 table.data-table tr.level-1 { background:#F9FAFB; font-weight:600; }
 table.data-table tr.level-2 { background:white; }
+#tab-ce table.data-table tr.level-2 td { font-weight:400; }
 table.data-table tr.level-3 td:first-child { padding-left:28px; color:var(--text-muted); }
 table.data-table tr.level-4 { background:#FAFAFA; }
 table.data-table tr.level-4 td:first-child { padding-left:48px; color:var(--text-light); }
@@ -582,6 +584,7 @@ td.compare-delta { color:#5D4E8C; font-weight:600; }
 
 /* -- Mobile piccolo (<=480px) -- */
 @media (max-width:480px) {
+  :root { --topbar-h:52px; }
   /* Top bar */
   .top-bar { height:52px; padding:0 12px; }
   .tabs-bar { top:52px; }
@@ -654,6 +657,7 @@ td.compare-delta { color:#5D4E8C; font-weight:600; }
 
 /* -- Mobile molto piccolo (<=360px) -- */
 @media (max-width:360px) {
+  :root { --topbar-h:48px; }
   .top-bar { height:48px; padding:0 10px; }
   .top-bar h1 { font-size:0.82rem; }
   .top-bar-brand svg { width:90px; }
@@ -680,6 +684,7 @@ td.compare-delta { color:#5D4E8C; font-weight:600; }
 
 /* Landscape generico: altezza <= 500px */
 @media (orientation:landscape) and (max-height:500px) {
+  :root { --topbar-h:44px; }
   /* Top bar più compatta */
   .top-bar { height:44px; }
   .top-bar h1 { font-size:0.88rem; }
@@ -761,6 +766,7 @@ td.compare-delta { color:#5D4E8C; font-weight:600; }
 
 /* Landscape telefoni molto bassi (<=420px altezza, tipico iPhone/Samsung) */
 @media (orientation:landscape) and (max-height:420px) {
+  :root { --topbar-h:40px; }
   .top-bar { height:40px; }
   .tabs-bar { top:40px; }
   .tab-btn { padding:6px 12px; font-size:0.66rem; min-height:30px; }
@@ -1341,15 +1347,26 @@ function calcCETotals(){
     }
   }
 
-  // Utile lordo = Risultato di gestione + figli con padre="Utile lordo"
+  // Costo del rischio = Rettifiche/riprese su crediti + Accantonamenti netti ai fondi rischi
+  fillTotal('COSTO DEL RISCHIO',[
+    'Rettifiche/riprese su crediti','Accantonamenti netti ai fondi rischi'
+  ]);
+
+  // Utile lordo = Risultato di gestione + Costo del rischio + altri figli con padre="Utile lordo"
   (function(){
     const target=f('UTILE LORDO'); if(!target) return;
     const isEmpty=['act','bdg','py'].every(sc=>target[sc].every(v=>v===0));
     if(!isEmpty) return;
-    const sources=[
-      f('RISULTATO DI GESTIONE'),
-      ...ce.filter(r=>(r.padre||'').toUpperCase()==='UTILE LORDO')
-    ].filter(Boolean);
+    const costoRischio=f('COSTO DEL RISCHIO');
+    const figliDiretti=ce.filter(r=>(r.padre||'').toUpperCase()==='UTILE LORDO');
+    let sources;
+    if(costoRischio){
+      const voceCDR=['RETTIFICHE/RIPRESE SU CREDITI','ACCANTONAMENTI NETTI AI FONDI RISCHI'];
+      const altriFilgi=figliDiretti.filter(r=>!voceCDR.includes(r.voce.toUpperCase()));
+      sources=[f('RISULTATO DI GESTIONE'), costoRischio, ...altriFilgi].filter(Boolean);
+    } else {
+      sources=[f('RISULTATO DI GESTIONE'), ...figliDiretti].filter(Boolean);
+    }
     if(!sources.length) return;
     ['act','bdg','py'].forEach(sc=>{
       for(let m=0;m<12;m++) target[sc][m]=sources.reduce((s,r)=>s+(r[sc][m]||0),0);
@@ -2628,7 +2645,26 @@ function renderMasse(){
   const forbiceRow=masse.find(r=>isBps(r));
 
   // 1. Impieghi a clientela
-  if(impieghi) cards+=tabHeroCard(impieghi.voce,impieghi.act[m]||0,impieghi.bdg[m]||0,impieghi.py[m]||0,'thg1',fmtMld);
+  if(impieghi){
+    const _v=impieghi.act[m]||0;
+    const _dBdg=fmtDelta(_v,impieghi.bdg[m]||0);
+    const _dPY=fmtDelta(_v,impieghi.py[m]||0);
+    const _v31=impieghi.py[11]||0;
+    const _pct31=_v31?(_v-_v31)/_v31*100:null;
+    const _d31Cls=_pct31===null?'':((_pct31>=0)?'positive':'negative');
+    const _d31Txt=_pct31===null?'-':((_pct31>=0?'+':'')+_pct31.toFixed(1).replace('.',',')+' %');
+    const _bdgCls=_dBdg.cls==='positive'?'up':'down';
+    const _pyCls=_dPY.cls==='positive'?'up':'down';
+    const _31Cls=_d31Cls==='positive'?'up':'down';
+    cards+=`<div class="tab-hero thg1">
+      <div class="th-label">${impieghi.voce}</div>
+      <div class="th-val">${fmtMld(_v)}</div>
+      <div class="th-deltas">
+        <span class="th-pill ${_bdgCls}">${_bdgCls==='up'?_arrowUp:_arrowDown}Bdg ${_dBdg.text}</span>
+        <span class="th-pill ${_pyCls}">${_pyCls==='up'?_arrowUp:_arrowDown}${getPYLabel()} ${_dPY.text}</span>
+        <span class="th-pill ${_31Cls}">${_31Cls==='up'?_arrowUp:_arrowDown}vs 31/12 ${_d31Txt}</span>
+      </div></div>`;
+  }
 
   // 2. Tasso Impieghi
   if(tassoImpieghiRow){
@@ -2645,7 +2681,26 @@ function renderMasse(){
   }
 
   // 3. Raccolta Diretta
-  if(diretta) cards+=tabHeroCard(diretta.voce,diretta.act[m]||0,diretta.bdg[m]||0,diretta.py[m]||0,'thg-navy1',fmtMld);
+  if(diretta){
+    const _v=diretta.act[m]||0;
+    const _dBdg=fmtDelta(_v,diretta.bdg[m]||0);
+    const _dPY=fmtDelta(_v,diretta.py[m]||0);
+    const _v31=diretta.py[11]||0;
+    const _pct31=_v31?(_v-_v31)/_v31*100:null;
+    const _d31Cls=_pct31===null?'':((_pct31>=0)?'positive':'negative');
+    const _d31Txt=_pct31===null?'-':((_pct31>=0?'+':'')+_pct31.toFixed(1).replace('.',',')+' %');
+    const _bdgCls=_dBdg.cls==='positive'?'up':'down';
+    const _pyCls=_dPY.cls==='positive'?'up':'down';
+    const _31Cls=_d31Cls==='positive'?'up':'down';
+    cards+=`<div class="tab-hero thg-navy1">
+      <div class="th-label">${diretta.voce}</div>
+      <div class="th-val">${fmtMld(_v)}</div>
+      <div class="th-deltas">
+        <span class="th-pill ${_bdgCls}">${_bdgCls==='up'?_arrowUp:_arrowDown}Bdg ${_dBdg.text}</span>
+        <span class="th-pill ${_pyCls}">${_pyCls==='up'?_arrowUp:_arrowDown}${getPYLabel()} ${_dPY.text}</span>
+        <span class="th-pill ${_31Cls}">${_31Cls==='up'?_arrowUp:_arrowDown}vs 31/12 ${_d31Txt}</span>
+      </div></div>`;
+  }
 
   // 4. Tasso Raccolta
   if(tassoRaccoltaRow){
@@ -2676,7 +2731,26 @@ function renderMasse(){
   }
 
   // 6. Raccolta Gestita
-  if(gestita) cards+=tabHeroCard(gestita.voce,gestita.act[m]||0,gestita.bdg[m]||0,gestita.py[m]||0,'thg-purple',fmtMld);
+  if(gestita){
+    const _v=gestita.act[m]||0;
+    const _dBdg=fmtDelta(_v,gestita.bdg[m]||0);
+    const _dPY=fmtDelta(_v,gestita.py[m]||0);
+    const _v31=gestita.py[11]||0;
+    const _pct31=_v31?(_v-_v31)/_v31*100:null;
+    const _d31Cls=_pct31===null?'':((_pct31>=0)?'positive':'negative');
+    const _d31Txt=_pct31===null?'-':((_pct31>=0?'+':'')+_pct31.toFixed(1).replace('.',',')+' %');
+    const _bdgCls=_dBdg.cls==='positive'?'up':'down';
+    const _pyCls=_dPY.cls==='positive'?'up':'down';
+    const _31Cls=_d31Cls==='positive'?'up':'down';
+    cards+=`<div class="tab-hero thg-purple">
+      <div class="th-label">${gestita.voce}</div>
+      <div class="th-val">${fmtMld(_v)}</div>
+      <div class="th-deltas">
+        <span class="th-pill ${_bdgCls}">${_bdgCls==='up'?_arrowUp:_arrowDown}Bdg ${_dBdg.text}</span>
+        <span class="th-pill ${_pyCls}">${_pyCls==='up'?_arrowUp:_arrowDown}${getPYLabel()} ${_dPY.text}</span>
+        <span class="th-pill ${_31Cls}">${_31Cls==='up'?_arrowUp:_arrowDown}vs 31/12 ${_d31Txt}</span>
+      </div></div>`;
+  }
 
   // Separa voci volumi da voci tassi/forbice
   const isRateRow=r=>isBps(r)||isPct(r);
