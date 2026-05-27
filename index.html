@@ -4106,20 +4106,20 @@ function renderStorici(){
       .sh-na { color:var(--text-light,#9CA3AF); font-style:italic; }
       .sh-voce-row { cursor:default; }
       .sh-voce-tip {
-        position:fixed; inset:0; z-index:600; display:none;
-        align-items:flex-end; justify-content:center; padding:16px;
-        background:rgba(15,39,64,0.35);
+        position:fixed; z-index:600; display:none;
+        left:0; top:0; pointer-events:none;
       }
-      .sh-voce-tip.open { display:flex; }
+      .sh-voce-tip.open { display:block; }
       .sh-voce-tip-box {
-        width:min(92vw,420px); max-height:min(42vh,280px); overflow-y:auto;
-        background:#fff; border-radius:12px 12px 0 0;
-        box-shadow:0 -4px 24px rgba(0,0,0,0.18);
-        padding:14px 16px 18px; position:relative;
-        animation:shVoceTipIn .18s ease-out;
+        width:min(78vw,340px); max-height:min(34vh,220px); overflow-y:auto;
+        background:#fff; border-radius:10px;
+        box-shadow:0 8px 24px rgba(0,0,0,0.2);
+        padding:12px 12px 12px; position:fixed;
+        animation:shVoceTipIn .14s ease-out; pointer-events:auto;
+        border:1px solid var(--border-light,#E5E9EF);
       }
       @keyframes shVoceTipIn {
-        from { transform:translateY(12px); opacity:0; }
+        from { transform:translateY(6px); opacity:0; }
         to { transform:translateY(0); opacity:1; }
       }
       .sh-voce-tip-close {
@@ -4212,8 +4212,7 @@ function renderStorici(){
           opacity:.75;
           letter-spacing:0;
         }
-        .sh-voce-tip { padding:12px; align-items:center; }
-        .sh-voce-tip-box { border-radius:12px; max-height:min(50vh,320px); }
+        .sh-voce-tip-box { width:min(82vw,320px); max-height:min(40vh,260px); }
       }
 
       /* ── MOBILE STRETTO (max 400px) ── */
@@ -4490,10 +4489,25 @@ function renderStorici(){
     voceTip.classList.remove('open');
     voceTip.setAttribute('aria-hidden', 'true');
   }
-  function shVoceTipOpen(text){
+  function shVoceTipOpen(text, anchorEl){
+    const box = voceTip.querySelector('.sh-voce-tip-box');
     voceTip.querySelector('.sh-voce-tip-text').textContent = text;
     voceTip.classList.add('open');
     voceTip.setAttribute('aria-hidden', 'false');
+    requestAnimationFrame(()=>{
+      const rect = anchorEl.getBoundingClientRect();
+      const boxW = box.offsetWidth || 280;
+      const boxH = box.offsetHeight || 120;
+      const pad = 8;
+      let left = rect.left + 8;
+      if(left + boxW > window.innerWidth - pad) left = window.innerWidth - boxW - pad;
+      if(left < pad) left = pad;
+      let top = rect.bottom + 6;
+      if(top + boxH > window.innerHeight - pad) top = rect.top - boxH - 6;
+      if(top < pad) top = pad;
+      box.style.left = left + 'px';
+      box.style.top = top + 'px';
+    });
   }
   if(panel._storiciTapHandler){
     panel.removeEventListener('click', panel._storiciTapHandler);
@@ -4502,6 +4516,10 @@ function renderStorici(){
   if(panel._storiciKeyHandler){
     document.removeEventListener('keydown', panel._storiciKeyHandler);
     panel._storiciKeyHandler = null;
+  }
+  if(panel._storiciDocClickHandler){
+    document.removeEventListener('click', panel._storiciDocClickHandler, true);
+    panel._storiciDocClickHandler = null;
   }
   panel._storiciTapHandler = (ev)=>{
     if(!window.matchMedia('(max-width: 600px)').matches) return;
@@ -4515,13 +4533,20 @@ function renderStorici(){
       shVoceTipClose();
       return;
     }
-    shVoceTipOpen(text);
+    shVoceTipOpen(text, labelCell);
   };
   panel._storiciKeyHandler = (ev)=>{
     if(ev.key==='Escape') shVoceTipClose();
   };
+  panel._storiciDocClickHandler = (ev)=>{
+    if(!voceTip.classList.contains('open')) return;
+    if(ev.target.closest('#sh-voce-tip .sh-voce-tip-box')) return;
+    if(ev.target.closest('.sh-voce-row')) return;
+    shVoceTipClose();
+  };
   panel.addEventListener('click', panel._storiciTapHandler);
   document.addEventListener('keydown', panel._storiciKeyHandler);
+  document.addEventListener('click', panel._storiciDocClickHandler, true);
 
   // Execute all pending chart renders now that canvas elements exist in DOM
   pendingCharts.forEach(fn=>fn());
